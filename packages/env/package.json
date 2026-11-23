@@ -1,0 +1,46 @@
+{
+	"name": "@repo/env",
+	"version": "0.0.0",
+	"private": true,
+	"type": "commonjs",
+	"exports": {
+		".": {
+			"types": "./dist/config.d.ts",
+			"browser": null,
+			"default": "./dist/config.js"
+		},
+		"./config": {
+			"types": "./dist/config.d.ts",
+			"browser": null,
+			"default": "./dist/config.js"
+		},
+		"./schema": {
+			"types": "./dist/schema.d.ts",
+			"browser": null,
+			"default": "./dist/schema.js"
+		},
+		"./load": {
+			"types": "./dist/load.d.ts",
+			"browser": null,
+			"default": "./dist/load.js"
+		}
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"check-types": "tsc --noEmit",
+		"lint": "biome check src test",
+		"test": "pnpm build && node --test test/*.test.cjs"
+	},
+	"dependencies": {
+		"dotenv": "^18.0.10",
+		"zod": "^4.6.7"
+	},
+	"devDependencies": {
+		"@repo/typescript-config": "workspace:*",
+		"@types/node": "^24.19.2",
+		"typescript": "7.0.2"
+	}
+}

@@ -10,6 +10,8 @@
 			"dependsOn": ["^lint"]
 		},
 		"dev": {
+			"dependsOn": ["^build"],
+			"env": ["NODE_ENV", "PORT", "MONGODB_URI"],
 			"cache": false,
 			"persistent": true
 		}
