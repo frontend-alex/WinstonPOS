@@ -1,33 +1,69 @@
-# `Turborepo` Vite starter
+# Opening Radar
 
-This is a community-maintained example. If you experience a problem, please submit a pull request with a fix. GitHub Issues will be closed.
+pnpm/Turborepo workspace with a React + TypeScript Vite frontend and a shared
+shadcn/ui package using the **Rhea** style, Base UI, and Tailwind CSS v4.
 
-## Using this example
+## Start the frontend
 
-Run the following command:
+Use the Node and pnpm versions specified in the root `package.json`.
 
 ```sh
-pnpm dlx create-turbo@latest -e with-vite
+pnpm install
+pnpm dev:web
 ```
 
-## What's inside?
+Open **http://127.0.0.1:5173**. The frontend binds only to loopback and fails
+explicitly if the port is occupied. No API keys are required for this starter.
 
-This Turborepo includes the following packages and apps:
+The starter page checks React interactivity and light/dark styles. It is not a
+working discovery pipeline and does not yet connect to a backend.
 
-### Apps and Packages
+## Frontend structure
 
-- `docs`: a vanilla [Vite](https://vite.dev) TypeScript app
-- `web`: another vanilla [Vite](https://vite.dev) TypeScript app
-- `@repo/ui`: a stub component and utility library shared by both `web` and `docs`
-- `@repo/eslint-config`: shared ESLint configuration
-- `@repo/typescript-config`: shared `tsconfig.json` files
+```text
+apps/web/
+  components.json          # Routes shadcn additions into @repo/ui
+  vite.config.ts           # React and Tailwind plugins
+  src/App.tsx              # Minimal starter page
+  src/main.tsx             # React entry point
+  src/style.css            # Imports shared theme CSS
+packages/ui/
+  components.json          # base-rhea / neutral / lucide
+  src/components/          # Generated shadcn components
+  src/lib/utils.ts
+  src/styles/globals.css   # Shared tokens, fonts, and Tailwind sources
+```
 
-Each package and app is 100% [TypeScript](https://www.typescriptlang.org/).
+The frontend setup does not implement or connect the separate backend.
+The vanilla `apps/docs` starter still imports removed legacy UI files and needs
+migration or removal before its own build can pass. Use the filtered commands
+below to verify this React frontend independently.
 
-### Utilities
+## Add shared components
 
-This Turborepo has some additional tools already set up for you:
+Run from the repository root:
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+```sh
+pnpm dlx shadcn@latest add input --cwd apps/web
+```
+
+The matching `components.json` aliases place shared primitives in `packages/ui`,
+not in the application. Import them through the workspace package:
+
+```tsx
+import { Button } from "@repo/ui/components/button";
+```
+
+## Verify the frontend
+
+```sh
+pnpm --filter web check-types
+pnpm --filter @repo/ui check-types
+pnpm --filter web lint
+pnpm --filter @repo/ui lint
+pnpm --filter web build
+```
+
+The theme was initialized with the official shadcn `rhea` preset. Both workspaces
+use `style: "base-rhea"`, neutral tokens, Lucide icons, and a locally bundled Inter
+font. There is no external font request.
