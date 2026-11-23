@@ -3,7 +3,8 @@
 	"tasks": {
 		"build": {
 			"dependsOn": ["^build"],
-			"inputs": ["$TURBO_DEFAULT$", ".env*"],
+			"env": ["VITE_MAPBOX_ACCESS_TOKEN"],
+			"inputs": ["$TURBO_DEFAULT$", ".env*", "$TURBO_ROOT$/.env*"],
 			"outputs": ["dist/**"]
 		},
 		"lint": {
@@ -11,7 +12,7 @@
 		},
 		"dev": {
 			"dependsOn": ["^build"],
-			"env": ["NODE_ENV", "PORT", "MONGODB_URI"],
+			"env": ["NODE_ENV", "PORT", "MONGODB_URI", "VITE_MAPBOX_ACCESS_TOKEN"],
 			"cache": false,
 			"persistent": true
 		}

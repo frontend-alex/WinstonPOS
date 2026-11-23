@@ -1,0 +1,23 @@
+diff --git a/dist/liquid-glass.js b/dist/liquid-glass.js
+index 0ed648bf75ab0d42136c25a4ccbfd9b958b7917e..02daa78707f3201c46c620ae004ed78e438a0caa 100644
+--- a/dist/liquid-glass.js
++++ b/dist/liquid-glass.js
+@@ -213,7 +213,8 @@ vec3 environment(vec3 direction, vec2 pixel) {
+   vec3 reflectedScene = sceneColor(reflectedPixel, 0.9);
+   float softbox = exp(-pow((direction.x + 0.42) / 0.16, 2.0) - pow((direction.y + 0.58) / 0.28, 4.0));
+   float fill = exp(-pow((direction.x - 0.7) / 0.10, 2.0) - pow(direction.y / 0.55, 4.0));
+-  return mix(reflectedScene, sceneColor(pixel, 0.65), 0.20) + vec3(0.96, 0.98, 1.0) * (softbox * 1.65 + fill * 0.32);
++  // Studio lights removed (Opening Radar): they read as a white haze on dark glass.
++  return mix(reflectedScene, sceneColor(pixel, 0.65), 0.20);
+ }
+ 
+ float energy(vec2 p, vec2 origin, vec2 spread) {
+@@ -295,7 +296,7 @@ void main() {
+   vec3 color = mix(transmitted, reflected, fresnel);
+   vec3 toLight = normalize(vec3(u_light - R.xy - front.xy, 500.0));
+   vec3 halfVector = normalize(toLight - viewRay);
+-  color += vec3(0.97, 0.985, 1.0) * pow(max(dot(normal, halfVector), 0.0), 160.0) * (0.04 + X.z * 0.10);
++  // Specular light removed (Opening Radar): it showed as a white haze near the top of the glass.
+   color *= 1.0 + X.z * 0.06;
+ 
+   // Sound lights the glass from inside in six colours, low notes left to high notes right.

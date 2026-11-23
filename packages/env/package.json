@@ -23,10 +23,15 @@
 			"types": "./dist/load.d.ts",
 			"browser": null,
 			"default": "./dist/load.js"
+		},
+		"./client": {
+			"types": "./src/client.mts",
+			"default": "./src/client.mts"
 		}
 	},
 	"files": [
-		"dist"
+		"dist",
+		"src/client.mts"
 	],
 	"scripts": {
 		"build": "tsc -p tsconfig.json",

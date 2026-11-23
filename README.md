@@ -32,10 +32,12 @@ pnpm dev:web
 ```
 
 Open **http://127.0.0.1:5173**. The frontend binds only to loopback and fails
-explicitly if the port is occupied. No API keys are required for this starter.
+explicitly if the port is occupied.
 
-The starter page checks React interactivity and light/dark styles. It is not a
-working discovery pipeline and does not yet connect to a backend.
+The map preview uses fictional restaurants, not a working discovery pipeline or
+live backend data. `VITE_MAPBOX_ACCESS_TOKEN` is required: `vite.config.ts`
+validates it with `@repo/env/client`, so dev and build refuse to start without a
+public `pk.*` token.
 
 ## Frontend structure
 
@@ -43,9 +45,13 @@ working discovery pipeline and does not yet connect to a backend.
 apps/web/
   components.json          # Routes shadcn additions into @repo/ui
   vite.config.ts           # React and Tailwind plugins
-  src/App.tsx              # Minimal starter page
-  src/main.tsx             # React entry point
-  src/style.css            # Imports shared theme CSS
+  src/main.tsx             # React entry, RouterProvider
+  src/app/router.tsx       # Routes rendered in the sidebar panel
+  src/app/root-layout.tsx  # Map (always mounted) + sidebar
+  src/config/env.ts        # Public config, validated via @repo/env/client
+  src/styles/style.css     # Mapbox CSS and shared theme
+  src/features/map/        # Map, leads panel, tooltip, selection context
+  src/features/sidebar/    # Liquid-glass icon rail + routed panel
 packages/ui/
   components.json          # base-rhea / neutral / lucide
   src/components/          # Generated shadcn components
@@ -79,7 +85,23 @@ pnpm --filter @repo/ui check-types
 pnpm --filter web lint
 pnpm --filter @repo/ui lint
 pnpm --filter web build
+pnpm --filter web test
 ```
+
+## Netherlands map preview
+
+Add `VITE_MAPBOX_ACCESS_TOKEN` to the **root** `.env` or `.env.local`, then restart
+Vite. Vite's `envDir` points at the repository root. Use a **public** `pk.*`
+Mapbox token with appropriate URL restrictions for your app (including your
+local development origin); never put a secret `sk.*` token in a `VITE_*` variable.
+Vite-prefixed variables are intentionally exposed to browser code. Do not import
+the server-only `@repo/env/config` into the frontend.
+
+The map uses the Mapbox Standard style, starting over the Netherlands
+(`[5.2913, 52.1326]`, zoom `6.5`). Restaurants show as red dots when zoomed out
+and as dashed red areas from zoom 13. Selecting one from the list or the map flies
+to a tilted 3D view and shows a tooltip; **Reset view** returns to the country.
+All restaurants are fictional fixtures.
 
 ## Linting
 

@@ -7,13 +7,22 @@
 		"dev": "vite --clearScreen false",
 		"build": "tsc && vite build",
 		"preview": "vite preview",
-		"lint": "biome check src vite.config.ts",
-		"check-types": "tsc --noEmit"
+		"lint": "biome check src vite.config.ts vitest.config.ts",
+		"check-types": "tsc --noEmit",
+		"test": "vitest run"
 	},
 	"dependencies": {
+		"@animate-ui/react": "^2.4.6",
+		"@animateicons/react": "^0.13.0",
+		"@base-ui/react": "^1.9.0",
+		"@repo/env": "workspace:*",
 		"@repo/ui": "workspace:*",
+		"@zerowing/liquid-glass": "github:MuhammadaliMS/liquid-glass",
+		"mapbox-gl": "^3.35.2",
+		"motion": "^14.14.0",
 		"react": "^19.3.1",
-		"react-dom": "^19.3.1"
+		"react-dom": "^19.3.1",
+		"react-router": "^8.5.2"
 	},
 	"devDependencies": {
 		"@repo/typescript-config": "workspace:*",
@@ -22,8 +31,10 @@
 		"@types/react": "^19.3.0",
 		"@types/react-dom": "^19.3.0",
 		"@vitejs/plugin-react": "^6.3.0",
+		"jsdom": "^31.0.1",
 		"tailwindcss": "^4.3.5",
 		"typescript": "7.0.2",
-		"vite": "8.2.2"
+		"vite": "8.2.2",
+		"vitest": "^5.1.1"
 	}
 }
