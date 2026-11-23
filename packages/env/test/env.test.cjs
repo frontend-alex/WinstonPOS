@@ -19,10 +19,10 @@ const uri = "mongodb://127.0.0.1:27017/env_fixture";
 test("validates and freezes typed configuration without exposing unknown keys", () => {
 	const config = validateEnv({
 		MONGODB_URI: uri,
-		PORT: "4100",
+		API_PORT: "4100",
 		EXTRA_SECRET: "hidden",
 	});
-	assert.equal(config.PORT, 4100);
+	assert.equal(config.API_PORT, 4100);
 	assert.equal(config.NODE_ENV, "development");
 	assert.equal(config.MONGODB_URI, uri);
 	assert.equal("EXTRA_SECRET" in config, false);
@@ -50,9 +50,52 @@ test("requires MongoDB and rejects unsupported protocols without leaking values"
 	);
 });
 
+test("defaults REDIS_URL to the local compose container", () => {
+	assert.equal(
+		validateEnv({ MONGODB_URI: uri }).REDIS_URL,
+		"redis://127.0.0.1:6379",
+	);
+});
+
+test("accepts redis:// and rediss:// URLs", () => {
+	for (const redis of [
+		"redis://127.0.0.1:6379",
+		"rediss://cache.example.invalid:6380/0",
+	]) {
+		assert.equal(
+			validateEnv({ MONGODB_URI: uri, REDIS_URL: redis }).REDIS_URL,
+			redis,
+		);
+	}
+});
+
+test("rejects other Redis protocols without leaking values", () => {
+	assert.throws(
+		() =>
+			validateEnv({
+				MONGODB_URI: uri,
+				REDIS_URL: "http://user:do-not-log-this@example.invalid:6379",
+			}),
+		(error) =>
+			error.message.includes("REDIS_URL") &&
+			!error.message.includes("do-not-log-this"),
+	);
+});
+
+test("defaults WORKER_PORT next to the API port", () => {
+	const config = validateEnv({ MONGODB_URI: uri, WORKER_PORT: "4300" });
+	assert.equal(config.WORKER_PORT, 4300);
+	assert.equal(validateEnv({ MONGODB_URI: uri }).WORKER_PORT, 3001);
+});
+
 test("rejects invalid ports and environments", () => {
-	for (const port of ["", "abc", "0", "-1", "65536", "3000.5"]) {
-		assert.throws(() => validateEnv({ MONGODB_URI: uri, PORT: port }), /PORT/);
+	for (const key of ["API_PORT", "WORKER_PORT"]) {
+		for (const port of ["", "abc", "0", "-1", "65536", "3000.5"]) {
+			assert.throws(
+				() => validateEnv({ MONGODB_URI: uri, [key]: port }),
+				new RegExp(key),
+			);
+		}
 	}
 	assert.throws(
 		() => validateEnv({ MONGODB_URI: uri, NODE_ENV: "not-an-environment" }),
@@ -87,7 +130,9 @@ function withFixtureWorkspace(run) {
 function childEnvironment(overrides = {}) {
 	const env = { ...process.env };
 	delete env.MONGODB_URI;
-	delete env.PORT;
+	delete env.API_PORT;
+	delete env.WORKER_PORT;
+	delete env.REDIS_URL;
 	delete env.NODE_ENV;
 	return { ...env, ...overrides };
 }
@@ -96,18 +141,18 @@ test("loads the workspace .env independently of cwd, preserving process preceden
 	withFixtureWorkspace((workspace, configPath) => {
 		writeFileSync(
 			join(workspace, ".env"),
-			`MONGODB_URI=${uri}\nPORT=4100\nNODE_ENV=test\n`,
+			`MONGODB_URI=${uri}\nAPI_PORT=4100\nNODE_ENV=test\n`,
 		);
 		const script = `
 			const assert = require("node:assert/strict");
 			const { config } = require(process.argv[1]);
 			assert.equal(config.MONGODB_URI, ${JSON.stringify(uri)});
-			assert.equal(config.PORT, 4200);
+			assert.equal(config.API_PORT, 4200);
 			assert.equal(config.NODE_ENV, "test");
 		`;
 		execFileSync(process.execPath, ["-e", script, configPath], {
 			cwd: join(workspace, "unrelated-cwd"),
-			env: childEnvironment({ PORT: "4200" }),
+			env: childEnvironment({ API_PORT: "4200" }),
 			stdio: "pipe",
 		});
 	});
@@ -119,7 +164,7 @@ test("supports process-only deployment without a .env file", () => {
 			process.execPath,
 			[
 				"-e",
-				'const assert = require("node:assert/strict"); const {config} = require(process.argv[1]); assert.equal(config.PORT, 3000);',
+				'const assert = require("node:assert/strict"); const {config} = require(process.argv[1]); assert.equal(config.API_PORT, 3000);',
 				configPath,
 			],
 			{
@@ -136,13 +181,13 @@ test("preserves the loader's raw parsing separately from Zod validation", () => 
 		parseEnv(`
 			# A comment
 			export NODE_ENV=test
-			PORT=4100 # Inline comment
+			API_PORT=4100 # Inline comment
 			MONGODB_URI="${uri}"
 			QUOTED="line one\\nline two"
 		`),
 		{
 			NODE_ENV: "test",
-			PORT: "4100",
+			API_PORT: "4100",
 			MONGODB_URI: uri,
 			QUOTED: "line one\nline two",
 		},
@@ -162,13 +207,16 @@ test(".env.local overrides .env while process environment wins over both", () =>
 	withFixtureWorkspace((workspace, configPath) => {
 		writeFileSync(
 			join(workspace, ".env"),
-			`MONGODB_URI=${uri}\nPORT=4100\nNODE_ENV=development\n`,
+			`MONGODB_URI=${uri}\nAPI_PORT=4100\nNODE_ENV=development\n`,
 		);
-		writeFileSync(join(workspace, ".env.local"), "PORT=4150\nNODE_ENV=test\n");
+		writeFileSync(
+			join(workspace, ".env.local"),
+			"API_PORT=4150\nNODE_ENV=test\n",
+		);
 
 		for (const [overrides, expectedPort] of [
 			[{}, 4150],
-			[{ PORT: "4200" }, 4200],
+			[{ API_PORT: "4200" }, 4200],
 		]) {
 			execFileSync(
 				process.execPath,
@@ -176,7 +224,7 @@ test(".env.local overrides .env while process environment wins over both", () =>
 					"-e",
 					`const assert = require("node:assert/strict");
 					const {config} = require(process.argv[1]);
-					assert.equal(config.PORT, ${expectedPort});
+					assert.equal(config.API_PORT, ${expectedPort});
 					assert.equal(config.NODE_ENV, "test");`,
 					configPath,
 				],

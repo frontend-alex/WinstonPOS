@@ -1,35 +1,34 @@
-
 import type { ConnectionOptions } from "bullmq";
 
 export function createRedisConnection(
-  redisUrl: string | undefined,
+	redisUrl: string | undefined,
 ): ConnectionOptions {
-  if (!redisUrl) {
-    throw new Error("REDIS_URL is required to connect to BullMQ");
-  }
+	if (!redisUrl) {
+		throw new Error("REDIS_URL is required to connect to BullMQ");
+	}
 
-  const url = new URL(redisUrl);
+	const url = new URL(redisUrl);
 
-  const database = url.pathname.slice(1);
+	const database = url.pathname.slice(1);
 
-  return {
-    host: url.hostname,
-    port: url.port ? Number(url.port) : 6379,
+	return {
+		host: url.hostname,
+		port: url.port ? Number(url.port) : 6379,
 
-    ...(url.username && {
-      username: decodeURIComponent(url.username),
-    }),
+		...(url.username && {
+			username: decodeURIComponent(url.username),
+		}),
 
-    ...(url.password && {
-      password: decodeURIComponent(url.password),
-    }),
+		...(url.password && {
+			password: decodeURIComponent(url.password),
+		}),
 
-    ...(database && {
-      db: Number(database),
-    }),
+		...(database && {
+			db: Number(database),
+		}),
 
-    ...(url.protocol === "rediss:" && {
-      tls: {},
-    }),
-  };
+		...(url.protocol === "rediss:" && {
+			tls: {},
+		}),
+	};
 }

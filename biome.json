@@ -30,7 +30,7 @@
 	},
 	"overrides": [
 		{
-			"includes": ["apps/api/**"],
+			"includes": ["apps/api/**", "apps/worker/**"],
 			"formatter": {
 				"indentStyle": "space",
 				"indentWidth": 2

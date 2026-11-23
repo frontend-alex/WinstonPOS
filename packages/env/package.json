@@ -19,19 +19,19 @@
 			"browser": null,
 			"default": "./dist/schema.js"
 		},
-		"./load": {
-			"types": "./dist/load.d.ts",
-			"browser": null,
-			"default": "./dist/load.js"
-		},
 		"./client": {
 			"types": "./src/client.mts",
 			"default": "./src/client.mts"
+		},
+		"./browser": {
+			"types": "./src/browser.mts",
+			"default": "./src/browser.mts"
 		}
 	},
 	"files": [
 		"dist",
-		"src/client.mts"
+		"src/client.mts",
+		"src/browser.mts"
 	],
 	"scripts": {
 		"build": "tsc -p tsconfig.json",

@@ -1,5 +1,5 @@
 import mapboxgl from "mapbox-gl";
-import { env } from "@/config/env";
+import { config } from "@repo/env/browser";
 import type { Restaurant } from "../types";
 
 export const NETHERLANDS_CENTER: [number, number] = [5.2913, 52.1326];
@@ -205,7 +205,7 @@ export function createRestaurantMap({
 }: Options): RestaurantMapController {
 	const map = new mapboxgl.Map({
 		container,
-		accessToken: env.MAPBOX_ACCESS_TOKEN,
+		accessToken: config.VITE_MAPBOX_ACCESS_TOKEN,
 		style: "mapbox://styles/mapbox/standard",
 		config: { basemap: { lightPreset } },
 		center: NETHERLANDS_CENTER,

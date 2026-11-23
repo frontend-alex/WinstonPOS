@@ -12,7 +12,14 @@
 		},
 		"dev": {
 			"dependsOn": ["^build"],
-			"env": ["NODE_ENV", "PORT", "MONGODB_URI", "VITE_MAPBOX_ACCESS_TOKEN"],
+			"env": [
+				"NODE_ENV",
+				"API_PORT",
+				"WORKER_PORT",
+				"MONGODB_URI",
+				"REDIS_URL",
+				"VITE_MAPBOX_ACCESS_TOKEN"
+			],
 			"cache": false,
 			"persistent": true
 		}

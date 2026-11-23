@@ -5,12 +5,21 @@ export const envSchema = z.object({
 		.enum(["development", "test", "production"])
 		.default("development"),
 	API_PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+	WORKER_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
 	MONGODB_URI: z
 		.string({ error: "MONGODB_URI is required" })
 		.trim()
 		.regex(/^mongodb(?:\+srv)?:\/\/[^\s]+$/, {
 			error: "Must be a mongodb:// or mongodb+srv:// connection string",
 		}),
+	// Defaults to the local container in compose.yaml.
+	REDIS_URL: z
+		.string()
+		.trim()
+		.regex(/^rediss?:\/\/[^\s]+$/, {
+			error: "Must be a redis:// or rediss:// connection string",
+		})
+		.default("redis://127.0.0.1:6379"),
 });
 
 export type Config = Readonly<z.infer<typeof envSchema>>;
