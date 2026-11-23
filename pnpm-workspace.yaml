@@ -3,5 +3,6 @@ packages:
   - "packages/*"
 allowBuilds:
   '@parcel/watcher': false
+  msgpackr-extract: set this to true or false
 patchedDependencies:
   '@zerowing/liquid-glass@1.1.1': patches/@zerowing__liquid-glass@1.1.1.patch
