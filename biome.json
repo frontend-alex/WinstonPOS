@@ -28,6 +28,23 @@
 			"tailwindDirectives": true
 		}
 	},
+	"overrides": [
+		{
+			"includes": ["apps/api/**"],
+			"formatter": {
+				"indentStyle": "space",
+				"indentWidth": 2
+			},
+			"javascript": {
+				"parser": {
+					"unsafeParameterDecoratorsEnabled": true
+				},
+				"formatter": {
+					"quoteStyle": "single"
+				}
+			}
+		}
+	],
 	"assist": {
 		"enabled": true,
 		"actions": {

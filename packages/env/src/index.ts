@@ -36,8 +36,6 @@ function isWorkspaceRoot(directory: string): boolean {
 	}
 }
 
-
-
 export function parseEnv(source: string): Record<string, string> {
 	const values: Record<string, string> = {};
 

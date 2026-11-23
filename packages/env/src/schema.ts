@@ -13,7 +13,6 @@ export const envSchema = z.object({
 		}),
 });
 
-
 export type Config = Readonly<z.infer<typeof envSchema>>;
 
 export function validateEnv(input: Record<string, unknown>): Config {

@@ -81,6 +81,12 @@ pnpm --filter @repo/ui lint
 pnpm --filter web build
 ```
 
+## Linting
+
+Biome is the linter for all workspaces. Run `pnpm lint` from the root, or
+`pnpm --filter api lint` for the backend. Lint commands are non-mutating;
+use `pnpm exec biome check --write <paths>` to apply fixes to selected files.
+
 The theme was initialized with the official shadcn `rhea` preset. Both workspaces
 use `style: "base-rhea"`, neutral tokens, Lucide icons, and a locally bundled Inter
 font. There is no external font request.
