@@ -1,0 +1,25 @@
+{
+	"name": "@repo/contracts",
+	"version": "0.0.0",
+	"private": true,
+	"type": "commonjs",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc",
+		"check-types": "tsc --noEmit",
+		"lint": "biome check src"
+	},
+	"dependencies": {
+		"zod": "^4.6.7"
+	},
+	"devDependencies": {
+		"@repo/typescript-config": "workspace:*",
+		"@types/node": "^24.19.2",
+		"typescript": "7.0.2"
+	}
+}

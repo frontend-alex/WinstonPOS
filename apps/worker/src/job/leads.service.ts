@@ -1,16 +1,12 @@
 import { Inject, Injectable, type OnModuleInit } from '@nestjs/common';
+import type { ScanResult } from '@repo/contracts';
 import type { Db } from '@repo/db';
-
-export interface Lead {
-  source: 'official-notice' | 'news';
-  externalId: string;
-  title: string;
-  url: string;
-  publishedAt: Date;
-  city?: string;
-  address?: string;
-  location?: { type: 'Point'; coordinates: [number, number] };
-}
+import {
+  type DiscoveredLead,
+  discoveredLeadSchema,
+  leadsCollection,
+} from '@repo/db/leads';
+import { buildLeadUpdate } from './utils/lead-update';
 
 export const MONGODB_DATABASE = Symbol('MONGODB_DATABASE');
 
@@ -19,7 +15,7 @@ export class LeadsService implements OnModuleInit {
   constructor(@Inject(MONGODB_DATABASE) private readonly db: Db) {}
 
   private get leads() {
-    return this.db.collection('leads');
+    return leadsCollection(this.db);
   }
 
   onModuleInit() {
@@ -28,25 +24,22 @@ export class LeadsService implements OnModuleInit {
     ]);
   }
 
-  async save(leads: Lead[]) {
+  async save(leads: DiscoveredLead[]): Promise<ScanResult> {
+    // Validate the entire batch before writing anything to MongoDB.
+    const validated = discoveredLeadSchema.array().parse(leads);
+
     const results = await Promise.all(
-      leads.map((lead) =>
+      validated.map((lead) =>
         this.leads.updateOne(
           { source: lead.source, externalId: lead.externalId },
-          {
-            $setOnInsert: {
-              ...lead,
-              review: 'candidate',
-              createdAt: new Date(),
-            },
-          },
-          { upsert: true },
+          buildLeadUpdate(lead),
+          { upsert: true, ignoreUndefined: true },
         ),
       ),
     );
 
     const saved = results.reduce(
-      (total, result) => total + result.upsertedCount,
+      (total, result) => total + result.upsertedCount + result.modifiedCount,
       0,
     );
     return { found: leads.length, saved };

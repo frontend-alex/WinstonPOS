@@ -7,12 +7,8 @@ async function boostrap() {
 
   app.enableShutdownHooks();
 
-  const port = config.WORKER_PORT;
-  await app.listen(port, '127.0.0.1');
-
   new Logger('Bootstrap').log({
     message: 'Worker application started',
-    port,
     environment: config.NODE_ENV,
   });
 }

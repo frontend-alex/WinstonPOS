@@ -8,6 +8,11 @@
 			"types": "./dist/index.d.ts",
 			"browser": null,
 			"default": "./dist/index.js"
+		},
+		"./leads": {
+			"types": "./dist/leads.model.d.ts",
+			"browser": null,
+			"default": "./dist/leads.model.js"
 		}
 	},
 	"files": [
@@ -17,11 +22,13 @@
 		"build": "tsc -p tsconfig.json",
 		"check-types": "tsc --noEmit",
 		"lint": "biome check src test",
-		"test": "pnpm --filter @repo/env build && pnpm build && node --test test/*.test.cjs"
+		"test": "pnpm --filter @repo/contracts build && pnpm --filter @repo/env build && pnpm build && node --test test/*.test.cjs"
 	},
 	"dependencies": {
+		"@repo/contracts": "workspace:*",
 		"@repo/env": "workspace:*",
-		"mongodb": "^7.9.1"
+		"mongodb": "^7.9.1",
+		"zod": "^4.6.7"
 	},
 	"devDependencies": {
 		"@repo/typescript-config": "workspace:*",

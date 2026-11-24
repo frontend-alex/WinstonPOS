@@ -1,10 +1,16 @@
 import { Collapsible } from "@animate-ui/react/primitives/base-ui/collapsible";
 import { SearchIcon } from "@animateicons/react/huge";
+import type { Lead } from "@repo/contracts";
 import { Input } from "@repo/ui/components/input";
+import { toast } from "@repo/ui/components/sonner";
 import { cn } from "@repo/ui/lib/utils";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { scanSources } from "../api/map";
 import { useRestaurantMapContext } from "../context/restaurant-map-context";
-import type { Restaurant } from "../types";
+import { LeadDetails } from "./lead-details";
+
+// Long enough for a previously open card to finish collapsing (animate-ui uses 350 ms).
+const COLLAPSE_MS = 400;
 
 interface IconHandle {
 	startAnimation: () => void;
@@ -12,17 +18,60 @@ interface IconHandle {
 }
 
 export function LeadsPanel() {
-	const { results, selected, query, setQuery, select } =
-		useRestaurantMapContext();
+	const {
+		results,
+		selected,
+		query,
+		setQuery,
+		select,
+		loading,
+		error,
+		refresh,
+	} = useRestaurantMapContext();
 	const [searching, setSearching] = useState(query !== "");
 	const searchIcon = useRef<IconHandle>(null);
 	// Which card is expanded. Opening a card does not move the map; picking a lead on the map
 	// (or pressing "Fly to lead") opens its card.
 	const [openId, setOpenId] = useState<string | null>(selected?.id ?? null);
 	const [lastSelectedId, setLastSelectedId] = useState(selected?.id);
+	const [scanning, setScanning] = useState(false);
 	if (selected?.id !== lastSelectedId) {
 		setLastSelectedId(selected?.id);
 		if (selected) setOpenId(selected.id);
+	}
+
+	// Bring the lead picked on the map to the top of the list.
+	const cards = useRef(new Map<string, HTMLElement>());
+	useEffect(() => {
+		if (!selected) return;
+		const scroll = () =>
+			cards.current.get(selected.id)?.scrollIntoView({
+				block: "start",
+				behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+					? "auto"
+					: "smooth",
+			});
+		scroll();
+		// Scroll again once a card above it has collapsed and shifted the list.
+		const settle = window.setTimeout(scroll, COLLAPSE_MS);
+		return () => window.clearTimeout(settle);
+	}, [selected]);
+
+	async function scan() {
+		setScanning(true);
+		try {
+			const { queued } = await scanSources();
+			toast.success(`Queued ${queued} source jobs`, {
+				description:
+					"Enrichment runs in the background; use Refresh to see updates.",
+			});
+		} catch {
+			toast.error("Could not queue the scan", {
+				description: "Check that the API is running.",
+			});
+		} finally {
+			setScanning(false);
+		}
 	}
 
 	return (
@@ -55,6 +104,24 @@ export function LeadsPanel() {
 						<SearchIcon ref={searchIcon} size={20} />
 					</button>
 				</div>
+				<div className="flex gap-2 text-sm">
+					<button
+						type="button"
+						onClick={() => void scan()}
+						disabled={scanning}
+						className="rounded-full bg-foreground px-4 py-2 text-background disabled:opacity-50"
+					>
+						{scanning ? "Queueing…" : "Scan sources"}
+					</button>
+					<button
+						type="button"
+						onClick={() => void refresh()}
+						disabled={loading}
+						className="rounded-full bg-card px-4 py-2 disabled:opacity-50"
+					>
+						Refresh
+					</button>
+				</div>
 				{searching && (
 					<Input
 						type="search"
@@ -62,27 +129,43 @@ export function LeadsPanel() {
 						aria-label="Search leads"
 						value={query}
 						onChange={(event) => setQuery(event.target.value)}
-						placeholder="Search by name, city or category"
+						placeholder="Search by title, city, source or address"
 						className="h-11 rounded-full border-transparent bg-card/90 px-5 shadow-sm"
 					/>
 				)}
 			</header>
 			{/* pt-1 leaves room for the open card's ring, which the scroll container would clip. */}
 			<ol className="min-h-0 flex-1 space-y-3 overflow-y-auto px-6 pt-1 pb-6">
-				{results.map((restaurant) => (
-					<li key={restaurant.id}>
+				{results.map((lead) => (
+					<li
+						key={lead.id}
+						// scroll-mt-1 keeps the open card's ring visible at the top.
+						className="scroll-mt-1"
+						ref={(element) => {
+							if (element) cards.current.set(lead.id, element);
+							else cards.current.delete(lead.id);
+						}}
+					>
 						<LeadCard
-							restaurant={restaurant}
-							open={openId === restaurant.id}
-							onOpenChange={(open) => setOpenId(open ? restaurant.id : null)}
-							onFly={() => select(restaurant.id)}
+							lead={lead}
+							open={openId === lead.id}
+							onOpenChange={(open) => setOpenId(open ? lead.id : null)}
+							onFly={() => select(lead.id)}
 						/>
 					</li>
 				))}
 			</ol>
-			{results.length === 0 && (
+			{loading && (
+				<p
+					role="status"
+					className="p-6 text-center text-sm text-muted-foreground"
+				>
+					Loading leads…
+				</p>
+			)}
+			{!loading && !error && results.length === 0 && (
 				<p className="p-6 text-center text-sm text-muted-foreground">
-					No results
+					{query ? "No matching leads" : "No leads yet"}
 				</p>
 			)}
 		</>
@@ -90,17 +173,17 @@ export function LeadsPanel() {
 }
 
 function LeadCard({
-	restaurant,
+	lead,
 	open,
 	onOpenChange,
 	onFly,
 }: {
-	restaurant: Restaurant;
+	lead: Lead;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onFly: () => void;
 }) {
-	const [lng, lat] = restaurant.coordinates;
+	const coordinates = lead.location?.coordinates;
 
 	return (
 		<Collapsible.Root
@@ -117,10 +200,10 @@ function LeadCard({
 			<Collapsible.Trigger className="flex w-full items-start justify-between gap-3 rounded-3xl px-5 py-5 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
 				<span className="min-w-0">
 					<span className="block truncate text-[15px] font-medium">
-						{restaurant.name}
+						{lead.details?.businessName ?? lead.title}
 					</span>
 					<span className="mt-1 block text-sm text-muted-foreground">
-						{restaurant.city}
+						{lead.city ?? "City unavailable"}
 					</span>
 				</span>
 				<span
@@ -138,31 +221,19 @@ function LeadCard({
 							open ? "bg-indigo-500" : "bg-pink-500",
 						)}
 					/>
-					{restaurant.category}
+					{lead.source === "news" ? "News" : "Official notice"}
 				</span>
 			</Collapsible.Trigger>
 			<Collapsible.Panel>
 				<div className="px-5 pb-5">
-					<ol className="relative space-y-4 border-l border-dashed border-foreground/40 pl-5 text-sm">
-						<li className="relative">
-							<span className="absolute top-1 -left-[25px] size-2.5 rounded-full border-2 border-foreground bg-card" />
-							<span className="block font-medium">City</span>
-							<span className="text-muted-foreground">{restaurant.city}</span>
-						</li>
-						<li className="relative">
-							<span className="absolute top-1 -left-[25px] size-2.5 rounded-full bg-foreground" />
-							<span className="block font-medium">Coordinates</span>
-							<span className="text-muted-foreground tabular-nums">
-								{lat.toFixed(4)}, {lng.toFixed(4)}
-							</span>
-						</li>
-					</ol>
+					<LeadDetails lead={lead} />
 					<button
 						type="button"
 						onClick={onFly}
-						className="mt-5 h-11 w-full rounded-full bg-foreground text-sm font-medium text-background outline-none transition-opacity hover:opacity-90 focus-visible:ring-3 focus-visible:ring-ring/40"
+						disabled={!coordinates}
+						className="mt-5 h-11 w-full rounded-full bg-foreground text-sm font-medium text-background outline-none transition-opacity hover:opacity-90 focus-visible:ring-3 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-50"
 					>
-						Fly to lead
+						{coordinates ? "Fly to lead" : "Location unavailable"}
 					</button>
 				</div>
 			</Collapsible.Panel>

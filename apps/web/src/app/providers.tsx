@@ -1,6 +1,7 @@
+import { Toaster } from "@repo/ui/components/sonner";
 import { TooltipProvider } from "@repo/ui/components/tooltip";
 import { RouterProvider } from "react-router";
-import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeProvider, useTheme } from "@/components/theme-provider";
 import { RestaurantMapProvider } from "@/features/map";
 import { router } from "./router";
 
@@ -16,6 +17,13 @@ export function Providers() {
 					<RouterProvider router={router} />
 				</RestaurantMapProvider>
 			</TooltipProvider>
+			<ThemedToaster />
 		</ThemeProvider>
 	);
+}
+
+// Status and error messages, bottom center, in the user's chosen theme.
+function ThemedToaster() {
+	const { theme } = useTheme();
+	return <Toaster position="bottom-center" theme={theme} />;
 }

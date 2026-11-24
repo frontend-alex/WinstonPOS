@@ -1,14 +1,17 @@
+import type { Lead } from "@repo/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useResolvedTheme } from "@/features/settings";
-import { restaurants } from "../data/restaurants";
 import {
 	createRestaurantMap,
 	type LightPreset,
 	type RestaurantMapController,
+	SIDEBAR_INSET,
 } from "../lib/map";
-import type { Restaurant } from "../types";
 
-export function useRestaurantMap(visible: readonly Restaurant[]) {
+export function useRestaurantMap(
+	leads: readonly Lead[],
+	visible: readonly Lead[],
+) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const controllerRef = useRef<RestaurantMapController | null>(null);
 	const cameraListeners = useRef(new Set<() => void>());
@@ -25,13 +28,18 @@ export function useRestaurantMap(visible: readonly Restaurant[]) {
 		if (!container) return;
 		const controller = createRestaurantMap({
 			container,
-			restaurants,
+			leads: [],
 			lightPreset: initialPreset.current,
 			onSelect: setSelectedId,
 			onCameraChange: () => {
 				for (const listener of cameraListeners.current) listener();
 			},
-			getPadding: () => ({ left: 528, right: 32, top: 40, bottom: 40 }),
+			getPadding: () => ({
+				left: SIDEBAR_INSET,
+				right: 32,
+				top: 40,
+				bottom: 40,
+			}),
 		});
 		controllerRef.current = controller;
 		const stopRender = controller.onRender((canvas) => {
@@ -47,6 +55,10 @@ export function useRestaurantMap(visible: readonly Restaurant[]) {
 	useEffect(() => {
 		controllerRef.current?.setLightPreset(lightPreset);
 	}, [lightPreset]);
+
+	useEffect(() => {
+		controllerRef.current?.setLeads(leads);
+	}, [leads]);
 
 	useEffect(() => {
 		controllerRef.current?.setVisible(visible.map(({ id }) => id));
@@ -82,7 +94,7 @@ export function useRestaurantMap(visible: readonly Restaurant[]) {
 
 	return {
 		containerRef,
-		selected: restaurants.find(({ id }) => id === selectedId),
+		selected: leads.find(({ id }) => id === selectedId),
 		select,
 		reset,
 		project,

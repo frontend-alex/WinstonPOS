@@ -5,7 +5,7 @@ export const envSchema = z.object({
 		.enum(["development", "test", "production"])
 		.default("development"),
 	API_PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-	WORKER_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
+	WEB_ORIGIN: z.url({ protocol: /^https?$/ }).default("http://127.0.0.1:5173"),
 	MONGODB_URI: z
 		.string({ error: "MONGODB_URI is required" })
 		.trim()

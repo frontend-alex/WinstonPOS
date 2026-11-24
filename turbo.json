@@ -15,7 +15,7 @@
 			"env": [
 				"NODE_ENV",
 				"API_PORT",
-				"WORKER_PORT",
+				"WEB_ORIGIN",
 				"MONGODB_URI",
 				"REDIS_URL",
 				"VITE_MAPBOX_ACCESS_TOKEN"

@@ -5,24 +5,24 @@ Keep this file at **60 lines maximum**.
 
 ## Stack and layout
 - NestJS 11, Express, TypeScript/NodeNext, MongoDB, Zod 4, Jest/Supertest.
-- `src/main.ts`: bootstrap, shutdown hooks, logging, loopback listener using `env.API_PORT`.
+- `src/main.ts`: bootstrap, shutdown hooks, logging, loopback listener using `config.API_PORT`.
 - `src/create-app.ts`: creates the Nest application and configures CORS; does not listen.
 - `src/app.module.ts`: imports `DatabaseModule`; registers global `ZodValidationPipe` through `APP_PIPE`.
-- `src/config/env.ts`: immutable API mapping over shared validated configuration.
+- `@repo/env/config`: shared validated server configuration.
 - `src/database/database.module.ts`: global database provider and shutdown cleanup.
-- `src/common/`: currently empty; reserve for genuinely shared API utilities.
-- `test/app.e2e-spec.ts`: HTTP validation tests with test-only routes and a mocked database.
+- `src/leads/utils/`: API serialization, scan job definitions, and daily scheduling.
+- `src/leads/`: list saved candidates and enqueue scans.
 - `tsconfig.json`: extends `@repo/typescript-config/nest.json`; build config excludes tests.
 - `dist/`: generated output; never edit directly.
-- No production controllers exist yet; `GET /` returning 404 is expected.
+- Successful handlers use `ApiResponse<T>`; HTTP failures use normal Nest handling.
 
 ## Environment and database
 - `@repo/env` loads root `.env`/`.env.local` and validates through its shared Zod schema.
 - Precedence: process environment → `.env.local` → `.env`.
-- API mapping: `API_PORT`, `NODE_ENV`, `DATABASE_URL` (alias for shared `MONGODB_URI`).
+- Use shared `API_PORT`, `NODE_ENV`, `MONGODB_URI`, `REDIS_URL`, and `WEB_ORIGIN`.
 - Do not duplicate validation with `ConfigModule.forRoot()` or another env loader.
 - Add variables to the shared schema; align mappings, tests, examples, and Turbo env declarations.
-- Known gaps: CORS reads unvalidated `WEB_ORIGIN`; Turbo/examples may still use `PORT`, not `API_PORT`.
+- CORS allows validated `WEB_ORIGIN` plus localhost/127.0.0.1 on port 5173.
 - Never log secrets, expose config through HTTP, or import server config into browser code.
 - Inject `Db` from `@repo/db` using `MONGODB_DATABASE`; do not create per-request clients.
 - Shared DB code owns pooling, connection/ping, and cleanup; Nest closes it on shutdown.
@@ -35,6 +35,7 @@ Keep this file at **60 lines maximum**.
 - Declare coercion/transforms explicitly; interfaces and primitive types are not automatically validated.
 - Do not add `class-validator`, `class-transformer`, or Nest's built-in `ValidationPipe`.
 - Keep controllers thin, business logic in services, and database access in services/repositories.
+- Use shared `Lead` and `leadsCollection(db)`; never return raw MongoDB documents.
 - Group approved features under `src/<feature>/` with a module, controller, service, DTOs, and tests.
 - Register feature modules in `AppModule`; do not invent endpoints or expand product scope.
 
@@ -42,12 +43,11 @@ Keep this file at **60 lines maximum**.
 ```sh
 pnpm dev:api
 pnpm build:api
-pnpm --filter api exec tsc --noEmit --incremental false
 pnpm --filter api test --runInBand
-pnpm --filter api test:e2e --runInBand
+pnpm --filter api check-types
 pnpm --filter api lint
 ```
-- `pnpm dev` starts API and web; avoid duplicate processes on the same ports.
+- `pnpm dev` starts API, worker, and web; avoid duplicate processes on the same ports.
 - Root commands build shared dependencies; restart dev after shared-package or env changes.
 - API `lint` runs non-mutating Biome checks; apply fixes only to intended files.
 

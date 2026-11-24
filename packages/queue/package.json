@@ -1,26 +1,27 @@
 {
-  "name": "@repo/queue",
-  "version": "1.0.0",
-  "private": true,
-  "type": "commonjs",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    }
-  },
-  "scripts": {
-    "build": "tsc",
-    "lint": "biome check .",
-    "check-types": "tsc --noEmit"
-  },
-  "dependencies": {
-    "bullmq": "^6.7.8",
-    "ioredis": "^5.11.1",
-    "zod": "^4.6.7"
-  },
-  "devDependencies": {
-    "@repo/typescript-config": "workspace:*",
-    "@types/node": "^24.19.2"
-  }
+	"name": "@repo/queue",
+	"version": "1.0.0",
+	"private": true,
+	"type": "commonjs",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc",
+		"lint": "biome check .",
+		"check-types": "tsc --noEmit"
+	},
+	"dependencies": {
+		"bullmq": "^6.7.8",
+		"ioredis": "^5.11.1",
+		"zod": "^4.6.7"
+	},
+	"devDependencies": {
+		"@repo/typescript-config": "workspace:*",
+		"@types/node": "^24.19.2",
+		"typescript": "7.0.2"
+	}
 }

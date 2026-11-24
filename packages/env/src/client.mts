@@ -9,7 +9,9 @@ export const clientEnvSchema = z.object({
 
 export type ClientConfig = Readonly<z.infer<typeof clientEnvSchema>>;
 
-export function createClientConfig(input: Record<string, unknown>): ClientConfig {
+export function createClientConfig(
+	input: Record<string, unknown>,
+): ClientConfig {
 	const result = clientEnvSchema.safeParse(input);
 	if (!result.success) {
 		const details = result.error.issues

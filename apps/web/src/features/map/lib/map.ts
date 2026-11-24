@@ -1,13 +1,20 @@
-import mapboxgl from "mapbox-gl";
+import type { Lead } from "@repo/contracts";
 import { config } from "@repo/env/browser";
-import type { Restaurant } from "../types";
+import type { Feature, FeatureCollection, Geometry } from "geojson";
+import mapboxgl from "mapbox-gl";
 
 export const NETHERLANDS_CENTER: [number, number] = [5.2913, 52.1326];
 export const NETHERLANDS_ZOOM = 6.5;
+/** Width the sidebar covers on the left of the map, including its margin. */
+export const SIDEBAR_INSET = 528;
 
 const ACCENT = "#e3262f";
 const AREA_RADIUS_METERS = 90;
 const AREA_MIN_ZOOM = 13;
+// Up to this zoom, nearby pins merge into one numbered circle.
+const CLUSTER_MAX_ZOOM = 12;
+// Labels only appear once pins are spread out enough to read them.
+const LABEL_MIN_ZOOM = 13;
 
 const AREAS = "restaurant-areas";
 const POINTS = "restaurant-points";
@@ -17,8 +24,12 @@ const LAYERS = {
 	halo: "restaurant-halo",
 	dot: "restaurant-dot",
 	label: "restaurant-label",
+	cluster: "restaurant-cluster",
+	clusterCount: "restaurant-cluster-count",
 } as const;
-const CLICKABLE = [LAYERS.fill, LAYERS.halo, LAYERS.dot];
+const CLICKABLE = [LAYERS.fill, LAYERS.halo, LAYERS.dot, LAYERS.cluster];
+const isCluster: mapboxgl.FilterSpecification = ["has", "point_count"];
+const isSinglePin: mapboxgl.FilterSpecification = ["!", isCluster];
 
 const isSelected = ["boolean", ["feature-state", "selected"], false];
 
@@ -30,6 +41,7 @@ export interface ClientPoint {
 }
 
 export interface RestaurantMapController {
+	setLeads: (leads: readonly Lead[]) => void;
 	select: (id: string) => void;
 	reset: () => void;
 	setVisible: (ids: readonly string[]) => void;
@@ -44,7 +56,7 @@ export interface RestaurantMapController {
 interface Options {
 	container: HTMLElement;
 	lightPreset: LightPreset;
-	restaurants: readonly Restaurant[];
+	leads: readonly Lead[];
 	getPadding: () => mapboxgl.PaddingOptions;
 	onSelect: (id: string | null) => void;
 	onCameraChange: () => void;
@@ -59,36 +71,78 @@ function circle([lng, lat]: readonly [number, number], radius: number) {
 	});
 }
 
-function collection<G extends GeoJSON.Geometry>(
-	restaurants: readonly Restaurant[],
-	geometry: (restaurant: Restaurant) => G,
-): GeoJSON.FeatureCollection<G> {
+function collection<G extends Geometry>(
+	leads: readonly Lead[],
+	geometry: (coordinates: [number, number]) => G,
+): FeatureCollection<G> {
 	return {
 		type: "FeatureCollection",
-		features: restaurants.map((restaurant) => ({
-			type: "Feature",
-			properties: { id: restaurant.id, name: restaurant.name },
-			geometry: geometry(restaurant),
-		})),
+		features: leads.flatMap<Feature<G>>((lead) =>
+			lead.location
+				? [
+						{
+							type: "Feature",
+							// Permit titles are long legal names; the address reads better on a map.
+							properties: {
+								id: lead.id,
+								label: lead.details?.businessName ?? lead.address ?? lead.title,
+							},
+							geometry: geometry(lead.location.coordinates),
+						},
+					]
+				: [],
+		),
 	};
 }
 
-function addLayers(map: mapboxgl.Map, restaurants: readonly Restaurant[]) {
+function addLayers(map: mapboxgl.Map, leads: readonly Lead[]) {
 	map.addSource(AREAS, {
 		type: "geojson",
 		promoteId: "id",
-		data: collection(restaurants, (r) => ({
+		data: collection(leads, (coordinates) => ({
 			type: "Polygon",
-			coordinates: [circle(r.coordinates, AREA_RADIUS_METERS)],
+			coordinates: [circle(coordinates, AREA_RADIUS_METERS)],
 		})),
 	});
 	map.addSource(POINTS, {
 		type: "geojson",
 		promoteId: "id",
-		data: collection(restaurants, (r) => ({
+		cluster: true,
+		clusterRadius: 48,
+		clusterMaxZoom: CLUSTER_MAX_ZOOM,
+		data: collection(leads, (coordinates) => ({
 			type: "Point",
-			coordinates: [...r.coordinates],
+			coordinates,
 		})),
+	});
+
+	map.addLayer({
+		id: LAYERS.cluster,
+		type: "circle",
+		source: POINTS,
+		slot: "top",
+		filter: isCluster,
+		paint: {
+			"circle-color": ACCENT,
+			"circle-radius": ["step", ["get", "point_count"], 16, 10, 20, 50, 26],
+			"circle-stroke-color": "#ffffff",
+			"circle-stroke-width": 3,
+			"circle-emissive-strength": 1,
+		},
+	});
+	map.addLayer({
+		id: LAYERS.clusterCount,
+		type: "symbol",
+		source: POINTS,
+		slot: "top",
+		filter: isCluster,
+		layout: {
+			"text-field": ["get", "point_count_abbreviated"],
+			"text-font": ["DIN Pro Bold", "Arial Unicode MS Bold"],
+			"text-size": 13,
+			"text-allow-overlap": true,
+		},
+		paint: { "text-color": "#ffffff", "text-emissive-strength": 1 },
 	});
 
 	map.addLayer({
@@ -132,6 +186,7 @@ function addLayers(map: mapboxgl.Map, restaurants: readonly Restaurant[]) {
 		source: POINTS,
 		slot: "top",
 		maxzoom: AREA_MIN_ZOOM,
+		filter: isSinglePin,
 		paint: {
 			"circle-color": ACCENT,
 			"circle-opacity": ["case", isSelected, 0.3, 0.18],
@@ -156,6 +211,7 @@ function addLayers(map: mapboxgl.Map, restaurants: readonly Restaurant[]) {
 		source: POINTS,
 		slot: "top",
 		maxzoom: AREA_MIN_ZOOM,
+		filter: isSinglePin,
 		paint: {
 			"circle-color": ACCENT,
 			"circle-radius": [
@@ -177,14 +233,17 @@ function addLayers(map: mapboxgl.Map, restaurants: readonly Restaurant[]) {
 		type: "symbol",
 		source: POINTS,
 		slot: "top",
+		minzoom: LABEL_MIN_ZOOM,
+		filter: isSinglePin,
 		layout: {
-			"text-field": ["get", "name"],
+			"text-field": ["get", "label"],
 			"text-font": ["DIN Pro Bold", "Arial Unicode MS Bold"],
-			"text-size": ["interpolate", ["linear"], ["zoom"], 6, 13, 16, 16],
+			"text-size": 13,
+			"text-max-width": 14,
 			"text-anchor": "top",
 			"text-offset": [0, 1.8],
-			"text-allow-overlap": true,
-			"text-ignore-placement": true,
+			// Mapbox hides labels that would collide instead of stacking them.
+			"text-optional": true,
 		},
 		paint: {
 			"text-color": "#111111",
@@ -197,7 +256,7 @@ function addLayers(map: mapboxgl.Map, restaurants: readonly Restaurant[]) {
 
 export function createRestaurantMap({
 	container,
-	restaurants,
+	leads,
 	getPadding,
 	onSelect,
 	onCameraChange,
@@ -210,9 +269,9 @@ export function createRestaurantMap({
 		config: { basemap: { lightPreset } },
 		center: NETHERLANDS_CENTER,
 		zoom: NETHERLANDS_ZOOM,
-		padding: getPadding(),
 		cooperativeGestures: true,
 	});
+	map.setPadding(getPadding());
 	map.getCanvas().setAttribute("aria-label", "Map of leads");
 
 	let loaded = false;
@@ -232,22 +291,35 @@ export function createRestaurantMap({
 		selectedId = id;
 	}
 
-	function applyFilter() {
-		if (!loaded || !visibleIds) return;
-		const filter: mapboxgl.FilterSpecification = [
-			"in",
-			["get", "id"],
-			["literal", [...visibleIds]],
-		];
-		for (const layer of Object.values(LAYERS)) map.setFilter(layer, filter);
+	// Filter the data, not the layers, so cluster counts match what's searched.
+	function shownLeads() {
+		if (!visibleIds) return leads;
+		const ids = new Set(visibleIds);
+		return leads.filter((lead) => ids.has(lead.id));
+	}
+
+	function refreshData() {
+		if (!loaded) return;
+		const shown = shownLeads();
+		map.getSource<mapboxgl.GeoJSONSource>(AREAS)?.setData(
+			collection(shown, (coordinates) => ({
+				type: "Polygon",
+				coordinates: [circle(coordinates, AREA_RADIUS_METERS)],
+			})),
+		);
+		map
+			.getSource<mapboxgl.GeoJSONSource>(POINTS)
+			?.setData(
+				collection(shown, (coordinates) => ({ type: "Point", coordinates })),
+			);
 	}
 
 	function select(id: string) {
-		const restaurant = restaurants.find((r) => r.id === id);
-		if (!restaurant) return;
+		const lead = leads.find((lead) => lead.id === id);
+		if (!lead?.location) return;
 		setSelectedState(id);
 		map.flyTo({
-			center: [...restaurant.coordinates],
+			center: lead.location.coordinates,
 			zoom: 16.4,
 			pitch: 55,
 			bearing: -20,
@@ -275,29 +347,42 @@ export function createRestaurantMap({
 
 	function setVisible(ids: readonly string[]) {
 		visibleIds = ids;
-		applyFilter();
+		refreshData();
 		if (selectedId && !ids.includes(selectedId)) deselect();
 	}
 
 	function project(id: string): ClientPoint | null {
-		const restaurant = restaurants.find((r) => r.id === id);
-		if (!restaurant) return null;
-		const { x, y } = map.project([...restaurant.coordinates]);
+		const lead = leads.find((lead) => lead.id === id);
+		if (!lead?.location) return null;
+		const { x, y } = map.project(lead.location.coordinates);
 		const rect = container.getBoundingClientRect();
 		if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
 		return { x: rect.left + x, y: rect.top + y };
 	}
 
 	map.on("style.load", () => {
-		addLayers(map, restaurants);
+		addLayers(map, shownLeads());
 		loaded = true;
-		applyFilter();
 		setSelectedState(selectedId);
 	});
 	map.on("move", onCameraChange);
 	const renderListeners = new Set<(canvas: HTMLCanvasElement) => void>();
 	map.on("render", () => {
 		for (const listener of renderListeners) listener(map.getCanvas());
+	});
+	map.on("click", LAYERS.cluster, (event) => {
+		const cluster = event.features?.[0];
+		const clusterId = cluster?.properties?.cluster_id;
+		if (typeof clusterId !== "number" || cluster?.geometry.type !== "Point") {
+			return;
+		}
+		const center = cluster.geometry.coordinates as [number, number];
+		map
+			.getSource<mapboxgl.GeoJSONSource>(POINTS)
+			?.getClusterExpansionZoom(clusterId, (error, zoom) => {
+				if (error || zoom == null) return;
+				map.easeTo({ center, zoom, duration: duration(500) });
+			});
 	});
 	map.on("click", CLICKABLE, (event) => {
 		const id = event.features?.[0]?.properties?.id;
@@ -325,6 +410,16 @@ export function createRestaurantMap({
 	resizeObserver.observe(container);
 
 	return {
+		setLeads(next) {
+			leads = next;
+			refreshData();
+			if (
+				selectedId &&
+				!leads.some((lead) => lead.id === selectedId && lead.location)
+			) {
+				deselect();
+			}
+		},
 		select,
 		reset,
 		setVisible,

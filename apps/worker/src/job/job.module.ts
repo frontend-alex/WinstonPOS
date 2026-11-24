@@ -9,7 +9,6 @@ import {
 } from '@repo/queue';
 import { JobWorker } from './job.worker';
 import { LeadsService, MONGODB_DATABASE } from './leads.service';
-import { SourcesService } from './sources.service';
 
 @Module({
   imports: [
@@ -21,7 +20,6 @@ import { SourcesService } from './sources.service';
   ],
   providers: [
     JobWorker,
-    SourcesService,
     LeadsService,
     { provide: MONGODB_DATABASE, useFactory: () => connectDatabase() },
   ],
