@@ -19,6 +19,7 @@ export class ScansService
   async scanNow(): Promise<ScanQueued> {
     const jobs = buildScanJobs(30);
     await this.queue.addBulk(jobs);
+    
     return { queued: jobs.length };
   }
 

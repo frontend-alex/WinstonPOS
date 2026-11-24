@@ -14,10 +14,12 @@ export function buildScanJobs(lookbackDays: number): ScanJob[] {
 }
 
 export async function registerDailyScans(queue: Queue): Promise<void> {
+  
   await queue.upsertJobScheduler('daily-official-notices', DAILY_AT_SIX, {
     name: JOBS.officialNotices,
     data: { lookbackDays: 2 },
   });
+
   await Promise.all(
     NEWS_FEEDS.map((url, index) =>
       queue.upsertJobScheduler(`daily-news-feed-${index}`, DAILY_AT_SIX, {
